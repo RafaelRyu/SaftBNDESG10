@@ -106,7 +106,7 @@ Siga os passos abaixo para subir o ambiente completo em segundos:
 1. **Clonar e Acessar:**
 ```bash
 git clone https://github.com/RafaelRyu/SaftBNDESG10.git
-cd projetoBNDES
+cd SaftBNDESG10
 ```
 
 
