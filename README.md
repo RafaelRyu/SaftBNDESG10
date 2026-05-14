@@ -1,245 +1,168 @@
-```markdown
+
 # 🚀 SAFTBNDES – Sistema de Apoio ao Financiamento Tecnológico
 
-**Instituição:** Profa. Mestre Sirley Ambrosia Vitorio Addão  
-**Data de entrega:** 15/05/2026  
-**Status:** ✅ Completo (Backend + Frontend + Docker)
+![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-success?style=for-the-badge)
+![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203.2-brightgreen?style=for-the-badge&logo=springboot)
+![Frontend](https://img.shields.io/badge/Frontend-Vanilla%20JS%20%2B%20Chart.js%20+%20Node.js-blue?style=for-the-badge&logo=javascript)
+![Docker](https://img.shields.io/badge/Deployment-Docker-blue?style=for-the-badge&logo=docker)
+
+O **SAFTBNDES** é uma plataforma desenvolvida para facilitar o acesso a dados de financiamento público. O sistema processa dados reais do **Portal de Dados Abertos do BNDES**, transformando mais de **896 mil registros** em dashboards analíticos e consultas inteligentes para micro e pequenas empresas.
+>**Nota**: Os dados são referentes as **operações indiretas automáticas** do BNDES, visto que são o principal meio de obtenção de crédito utilizado pelas empresas e negócios.
 
 ---
 
-## 📋 Capa e Introdução
+## 📌 Sumário
+* [Introdução](#-introdução)
+* [Tecnologias Utilizadas](#-tecnologias-utilizadas)
+* [Arquitetura e Camadas](#-arquitetura-e-camadas)
+* [Documentação da API](#-documentação-da-api)
+* [Guia de Execução (Docker)](#-guia-de-execução-docker)
+* [Estrutura do Projeto](#-estrutura-do-projeto)
+* [Considerações Finais](#-considerações-finais)
 
-| Campo | Descrição |
-|-------|-----------|
-| **Título do Projeto** | SAFTBNDES – Sistema de Apoio ao Financiamento Tecnológico |
-| **Integrantes** | *[Nome do Aluno 1]*, *[Nome do Aluno 2]*, *[Nome do Aluno 3]* |
-| **Objetivo** | Transformar dados públicos de financiamentos do BNDES em **informações estratégicas** para pequenas empresas de tecnologia. O sistema lê arquivos CSV oficiais, permite consultas com filtros inteligentes, gera dashboards analíticos e simula o cadastro de novas operações (CRUD completo). |
+---
 
-O projeto resolve o problema de **falta de transparência e inteligência na tomada de decisão** sobre linhas de crédito. Ele oferece uma aplicação web completa que consome dados reais do Portal de Dados Abertos do BNDES, processa mais de **896 mil registros**, e entrega visualizações e consultas ágeis para análise de mercado.
+## 📋 Introdução
+
+| Informações Gerais | Detalhes |
+|:--- |:--- |
+| **Instituição** | Fatec Zona Leste |
+| **Data de Entrega** | 15/05/2026 |
+| **Integrantes** | Gustavo Amorim e Rafael Ryu |
+| **Objetivo** | Transformar dados brutos (CSV) em inteligência de mercado e CRUD operacional. |
+
+> **O Problema:** A falta de informação e dados excessivos dificulta a tomada de decisão.  
+> **A Solução:** Uma aplicação Web robusta com processamento em lote, filtros dinâmicos e visualização de dados ágil para facilitar a análise dos dados e tomada de decisão.
 
 ---
 
 ## 🧱 Tecnologias Utilizadas
 
-### Backend (Java + Spring Boot 3.2.5)
-- **Spring Boot Starter Web** – API RESTful
-- **Spring Boot Starter Data JPA** – Persistência com Hibernate
-- **H2 Database** – Banco em memória para desenvolvimento ágil
-- **OpenCSV 5.9** – Leitura e parsing do CSV do BNDES
-- **Lombok** – Redução de boilerplate (getters, setters, builders)
-- **Maven** – Gerenciamento de dependências e build
+### 💻 Backend
+* **Java 17 & Spring Boot 3.2.5**
+* **Spring Data JPA** (Persistência e Queries complexas)
+* **H2 Database** (Banco SQL em memória de alta performance)
+* **OpenCSV 5.9** (Parsing eficiente de arquivos grandes)
+* **Lombok** (Produtividade no código Java)
 
-### Frontend
-- **HTML5, CSS3, JavaScript (ES6+)** – Interface responsiva e interativa
-- **Chart.js 4.4** – Gráficos dinâmicos (barras, pizza, rosca)
-- **Node.js + Express** – Servidor local e proxy reverso para evitar CORS
-- **Docker / Docker Compose** – Containerização completa
+### 🎨 Frontend
+* **Vanilla Stack:** HTML5, CSS3, JavaScript (ES6+)
+* **Chart.js 4.4:** Dashboards dinâmicos (Pizza, Barras, Rosca)
+* **Node.js + Express:** Servidor de arquivos estáticos.
 
----
+### 🐋 Infraestrutura
+* **Docker & Docker Compose** (Containerização total do ecossistema)
 
-## ⚙️ Funcionamento do Backend (Camadas)
 
-O backend segue a arquitetura **Controller → Service → Repository → Banco**, conforme diagrama abaixo.
+## ⚙️ Arquitetura e Camadas
 
-```
-┌──────────────┐     ┌──────────────┐     ┌────────────────┐     ┌────────────┐
-│  Controller  │ --> │   Service    │ --> │   Repository   │ --> │   Banco H2 │
-│  (REST)      │ <-- │  (Regras)    │ <-- │   (JPA/JPQL)   │ <-- │   (memória)│
-└──────────────┘     └──────────────┘     └────────────────┘     └────────────┘
-       ↑                                        ↑
-       │                                        │
-  Frontend (HTML/JS)                     DTOs (Data Transfer Objects)
-```
+O backend segue o padrão de arquitetura em camadas para garantir escalabilidade e manutenção.
 
-### 🔹 Model (Entidade `OperacaoBNDES`)
-A classe `OperacaoBNDES` é anotada com `@Entity` e mapeia todas as 30 colunas do CSV oficial do BNDES. Principais atributos:
 
-- `idInterno` (chave primária gerada)
-- `cliente`, `cpfCnpj`, `uf`, `municipio`, `municipioCodigo`
-- `dataDaContratacao` (`LocalDateTime`)
-- `valorDaOperacaoEmReais`, `valorDesembolsadoReais`
-- `fonteDeRecursoDesembolsos`, `custoFinanceiro`, `juros`
-- `prazoCarenciaMeses`, `prazoAmortizacaoMeses`
-- `modalidadeDeApoio`, `formaDeApoio`, `produto`, `instrumentoFinanceiro`
-- `inovacao`, `areaOperacional`, `setorCnae`, `subsetorCnae...`
-- `setorBndes`, `subsetorBndes`, `porteDoCliente`, `naturezaDoCliente`
-- `instituicaoFinanceiraCredenciada`, `cnpjDoAgenteFinanceiro`, `situacaoDaOperacao`
+    A[Frontend] --> B[Controller]
+    B --> C[Service]
+    C --> D[Repository]
+    D --> E[(H2 Database)]
+    C -.-> F[DTOs]
 
-### 🔹 Repository (`OperacaoBNDESRepository`)
-Interface que estende `JpaRepository` e `JpaSpecificationExecutor`:
-- Métodos de busca personalizados com **Specifications** (filtros dinâmicos)
-- Queries agregadas com `@Query` usando construtores de **DTOs** (ex.: `ResumoEstadoDTO`, `AgenteConcentracaoDTO`, `PorteDistribuicaoDTO`, etc.)
+### 🔹 Destaques da Implementação
 
-### 🔹 Service (`OperacaoBNDESService`)
-Contém a lógica de negócio:
-- **CRUD** completo: `criar()`, `atualizar()`, `deletar()`, `buscarPorId()`
-- **Validações** de campos obrigatórios (cliente, UF, valor) com `IllegalArgumentException`
-- **Filtro paginado** que constrói dinamicamente `Specification` com base nos parâmetros recebidos
-- **Contagem** de registros usando a mesma `Specification`
-- **Métodos de agregação** que chamam as queries do repositório
-
-### 🔹 Controller (`OperacaoBNDESController`)
-Expõe todos os endpoints REST documentados abaixo. Utiliza `ResponseEntity` para retornar status HTTP adequados (`200 OK`, `201 Created`, `404 Not Found`, `204 No Content`).
-
-### 🔹 Carga de CSV (`CsvLoaderService`)
-- Lê o arquivo `operacoes.csv` do classpath
-- Processa linha a linha com **OpenCSV**
-- Converte strings para tipos nativos (`Double`, `Integer`, `LocalDateTime`)
-- Salva em **lotes de 1.000 registros** para evitar estouro de memória (heap)
-- Utiliza `EntityManager.flush()` e `clear()` para liberar o contexto de persistência
-
-### 🔹 Tratamento de Erros (`GlobalExceptionHandler`)
-Centraliza exceções:
-- `ResourceNotFoundException` → **404 Not Found**
-- Demais exceções → **500 Internal Server Error** (com log detalhado no console)
-
-### 🔹 Importância dos DTOs
-Os **Data Transfer Objects** são essenciais para:
-- **Reduzir tráfego**: retornam apenas os campos necessários para cada endpoint
-- **Desacoplar** a API da entidade JPA
-- **Facilitar** agregações (ex.: `SUM`, `COUNT`, `GROUP BY`) com construtores JPQL
-- **Exemplos**: `ResumoEstadoDTO`, `AgenteConcentracaoDTO`, `TicketMedioDTO`, `ProdutoDTO`, etc.
+* **Model (`OperacaoBNDES`)**: Mapeamento completo de 30 colunas do CSV oficial.
+* **Filtros Dinâmicos**: Uso de `JpaSpecificationExecutor` para buscas complexas (UF, porte, setor).
+* **Performance**: Carga de CSV em lotes de 1.000 registros com `EntityManager.flush()` para evitar estouro de memória.
+* **DTOs**: Objetos específicos para reduzir o tráfego de dados e facilitar agregações SQL (`SUM`, `COUNT`, `AVG`).
 
 ---
 
 ## 🌐 Documentação da API (REST)
 
-Base URL: `http://localhost:8080/api`
+**Base URL:** `http://localhost:8080/api`
 
-### 📊 Endpoints de Operações (CRUD + Filtros)
+### 📊 Operações (CRUD & Filtros)
 
-| Método | Rota | Descrição | Status Esperado |
-|--------|------|-----------|-----------------|
-| `GET` | `/operacoes` | Lista paginada com filtros opcionais (query params) | 200 OK |
-| `GET` | `/operacoes/count` | Total de registros (com mesmos filtros) | 200 OK |
-| `GET` | `/operacoes/{id}` | Detalhes de uma operação | 200 OK / 404 |
-| `POST` | `/operacoes` | Cria nova operação | 201 Created |
-| `PUT` | `/operacoes/{id}` | Atualiza operação existente | 200 OK / 404 |
-| `DELETE` | `/operacoes/{id}` | Exclui operação | 204 No Content |
-| `POST` | `/carga` | Recarrega dados do CSV | 200 OK |
+| Método | Rota | Função | Status |
+| --- | --- | --- | --- |
+| `GET` | `/operacoes` | Lista paginada com filtros dinâmicos | `200` |
+| `GET` | `/operacoes/count` | Totalizador de registros sob filtros | `200` |
+| `POST` | `/operacoes` | Cadastro de nova operação | `210` |
+| `PUT` | `/operacoes/{id}` | Atualização de dados | `200/404` |
+| `DELETE` | `/operacoes/{id}` | Remoção física da operação | `204` |
 
-### 📈 Endpoints de Análise (Resumos)
+### 📈 Inteligência (Analytics)
 
-| Método | Rota | Descrição | Status |
-|--------|------|-----------|--------|
-| `GET` | `/resumo/estados` | Total financiado por UF | 200 |
-| `GET` | `/resumo/agentes` | Concentração por agente financeiro | 200 |
-| `GET` | `/resumo/porte` | Distribuição por porte do cliente | 200 |
-| `GET` | `/resumo/vocacoes` | Vocações regionais (UF x subsetor CNAE) | 200 |
-| `GET` | `/resumo/custo` | Categorização por custo financeiro | 200 |
-| `GET` | `/resumo/setores` | Top setores BNDES | 200 |
-| `GET` | `/resumo/natureza` | Natureza do cliente (público/privado) | 200 |
-| `GET` | `/resumo/produtos` | Top produtos | 200 |
-| `GET` | `/ticket-medio` | Ticket médio com filtros (porte, setor, UF, produto) | 200 |
-
-### 🔍 Exemplo de requisição (filtro paginado)
-
-```
-GET /api/operacoes?uf=RS&porteDoCliente=MICRO&page=0&size=20
-```
-
-### 📤 Exemplo de JSON para criação (`POST /api/operacoes`)
-
-```json
-{
-  "cliente": "Nova Empresa Ltda",
-  "uf": "SP",
-  "valorDaOperacaoEmReais": 50000.0,
-  "produto": "BNDES AUTOMÁTICO",
-  "inovacao": "SIM",
-  "porteDoCliente": "PEQUENA",
-  ...
-}
-```
+| Método | Rota | Insight Gerado | Status |
+| --- | --- | --- | --- |
+| `GET` | `/resumo/estados` | Distribuição de financiamento por UF | `200` |
+| `GET` | `/resumo/agentes` | Maiores agentes financeiros (Bancos) | `200` |
+| `GET` | `/resumo/porte` | Crédito por tamanho da empresa | `200` |
+| `GET` | `/ticket-medio` | Cálculo de média ponderada filtrada | `200` |
 
 ---
 
 ## 🐳 Guia de Execução (Docker)
 
-### Pré‑requisitos
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+Siga os passos abaixo para subir o ambiente completo em segundos:
 
-### Passos
-
-1. Clone o repositório:
+1. **Clonar e Acessar:**
 ```bash
 git clone <url-do-repositorio>
 cd projetoBNDES
 ```
 
-2. Inicie os containers:
+
+2. **Subir Containers:**
 ```bash
 docker-compose up --build
+
 ```
 
-3. Aguarde a carga do CSV (ver logs do backend). Após a mensagem *"Carga automática finalizada. 896000 operações importadas."*, o sistema estará pronto.
 
-4. Acesse:
-- **Frontend:** [http://localhost:3000](http://localhost:3000)
-- **Console H2:** [http://localhost:8080/h2-console](http://localhost:8080/h2-console)  
-  - JDBC URL: `jdbc:h2:mem:bndesdb`
-  - User: `sa` | Password: `123456`
+3. **Acessar o Sistema:**
+* **Dashboard Web:** [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000)
+* **API / H2 Console:** [http://localhost:8080/h2-console](https://www.google.com/search?q=http://localhost:8080/h2-console)
+* *JDBC URL:* `jdbc:h2:mem:bndesdb`
+* *User:* `sa`
+* *Pass:* `123456`
 
-5. Para parar:
-```bash
-docker-compose down
-```
 
-### Execução sem Docker (alternativa)
 
-**Backend:**
-```bash
-cd demo
-./mvnw spring-boot:run
-```
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-node app.js
-```
+
+> 💡 **Nota:** O sistema levará alguns segundos na primeira execução para processar as 896 mil linhas do arquivo `operacoes.csv`. Acompanhe o progresso nos logs do terminal.
+
+> 💡 **Nota:** Os nomes e senhas mostrados são para teste. Você pode (e deve) mudar o usuário e senha ao rodar a aplicação para que outros usuários não acessem sua aplicação sem permissão.
 
 ---
 
-## 🧩 Estrutura de Pastas
+## 🧩 Estrutura do Projeto
 
-```
+```text
 projetoBNDES/
-├── demo/                         # Backend Spring Boot
-│   ├── src/main/java/com/example/demo/
-│   │   ├── config/DataLoader.java
-│   │   ├── controller/OperacaoBNDESController.java
-│   │   ├── dto/*.java             # DTOs para agregações
-│   │   ├── exception/*.java       # GlobalExceptionHandler
-│   │   ├── model/OperacaoBNDES.java
-│   │   ├── repository/OperacaoBNDESRepository.java
-│   │   └── service/*.java        # CsvLoaderService, OperacaoBNDESService
-│   ├── src/main/resources/
-│   │   ├── application.properties
-│   │   └── operacoes.csv          # Arquivo de dados (896k linhas)
-│   └── pom.xml
-├── frontend/                     # Frontend HTML/JS + servidor Node
-│   ├── index.html                # Interface completa
-│   ├── app.js                    # Servidor Express com proxy
-│   ├── package.json
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+├── demo/                       # ☕ Backend Spring Boot
+│   ├── src/main/java/          # Código fonte Java
+│   ├── src/main/resources/     # CSV e application.properties
+│   └── pom.xml                 # Dependências (JPA, OpenCSV e Drivers)
+├── frontend/                   # 🌐 Frontend Web
+│   ├── index.html              # UI Principal
+│   ├── app.js                  # Servidor Node.js
+│   └── Dockerfile              # Setup Docker Front
+├── docker-compose.yml          # Orquestrador de serviços
+└── README.md                   # Documentação
+
 ```
 
 ---
 
 ## 📌 Considerações Finais
 
-- O sistema atende todos os requisitos da disciplina: **carga de CSV**, **CRUD completo**, **filtros inteligentes**, **resumos/insights**, **tratamento de erros (404/500)**, **interface gráfica com gráficos** e **documentação completa**.
-- O uso de **Optional** para evitar `NullPointerException` e a adoção de `ResponseEntity` nos controllers demonstram boas práticas de programação.
-- A containerização com **Docker** garante portabilidade e facilidade de implantação.
+* **Robustez**: Tratamento global de exceções para erros 404 e 500.
+* **Boas Práticas**: Uso intensivo de `Optional`, `ResponseEntity` e Injeção de Dependência.
+* **Escalabilidade**: O backend pode ser conectado em outros bancos SQL (PostgreSQL/MySQL) com alterações mínimas no arquivo `properties` (visto que o H2 é um banco SQL).
 
 ---
 
-> **Diferencial do Projeto:** foco em pequenas empresas de tecnologia, uso de dados públicos reais, alta performance com 896k registros, e integração com Docker.
+**Desenvolvido como projeto acadêmico para Análise de Dados e Padrões de Projeto.**
 
----
+```
+
 ```
