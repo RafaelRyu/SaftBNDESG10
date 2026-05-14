@@ -109,8 +109,13 @@ git clone https://github.com/RafaelRyu/SaftBNDESG10.git
 cd SaftBNDESG10
 ```
 
+2. **Baixar e Adicionar o arquivo .csv:**
+   
+Vá ao site do BNDES (https://dadosabertos.bndes.gov.br/dataset/operacoes-financiamento/resource/612faa0b-b6be-4b2c-9317-da5dc2c0b901), baixe o arquivo operações indiretas automáticas e adicione na pasta resources.
 
-2. **Subir Containers:**
+3. **Subir Containers:**
+   
+   Na pasta SaftBNDESG10, rode o seguinte comando:
 ```bash
 docker-compose up --build
 
@@ -130,7 +135,7 @@ docker-compose up --build
 
 > 💡 **Nota:** O sistema levará alguns segundos na primeira execução para processar as 896 mil linhas do arquivo `operacoes.csv`. Acompanhe o progresso nos logs do terminal.
 
-> 💡 **Nota:** Os nomes e senhas mostrados são para teste. Você pode (e deve) mudar o usuário e senha ao rodar a aplicação para que outros usuários não acessem sua aplicação sem permissão.
+> 💡 **Nota:** Os nomes e senhas mostrados são para teste. Você pode (e deve) mudar o usuário e senha no application.properties ao rodar a aplicação para que outros usuários não acessem sua aplicação sem permissão.
 
 ---
 
