@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAFTBNDES – Painel de Análise</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a56db;
+            --primary-light: #e8effd;
+            --sidebar-bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --card-bg: #ffffff;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text); background: #f1f5f9;
+            display: flex; min-height: 100vh;
+        }
+        .sidebar {
+            width: 260px; background: var(--sidebar-bg);
+            border-right: 1px solid var(--border); padding: 1.5rem 1rem;
+            display: flex; flex-direction: column; gap: 0.5rem;
+            position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .sidebar h2 { font-size: 1.25rem; color: var(--primary); margin-bottom: 1.5rem; padding: 0 0.5rem; }
+        .sidebar button {
+            background: transparent; border: none; text-align: left;
+            padding: 0.75rem 1rem; border-radius: var(--radius);
+            font-size: 0.95rem; cursor: pointer; color: var(--text);
+            transition: background 0.2s, color 0.2s;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .sidebar button:hover { background: var(--primary-light); color: var(--primary); }
+        .sidebar button.active { background: var(--primary); color: white; font-weight: 600; }
+        .menu-toggle {
+            display: none; background: var(--primary); color: white; border: none;
+            font-size: 1.5rem; width: 40px; height: 40px; border-radius: 50%;
+            position: fixed; top: 1rem; left: 1rem; z-index: 200;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+        .main {
+            flex: 1; margin-left: 260px; padding: 2rem;
+            width: calc(100% - 260px); transition: margin 0.3s ease;
+        }
+        .section { display: none; }
+        .section.active { display: block; }
+        .card {
+            background: var(--card-bg); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .card h3 { margin-bottom: 1rem; color: var(--primary); }
+        .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 250px; }
+        .stat { background: var(--primary-light); padding: 1rem; border-radius: var(--radius); text-align: center; }
+        .stat .number { font-size: 2rem; font-weight: bold; color: var(--primary); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+        th, td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+        th { background: var(--primary-light); color: var(--primary); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+        tr:hover { background: #f8fafc; }
+        .table-container { max-height: 65vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+        input, select, button {
+            padding: 0.6rem 0.8rem; border: 1px solid var(--border);
+            border-radius: var(--radius); font-size: 0.9rem; outline: none;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--primary); }
+        .btn {
+            cursor: pointer; border: none; padding: 0.6rem 1.2rem;
+            font-weight: 600; border-radius: var(--radius);
+            transition: background 0.2s, transform 0.1s;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1e40af; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: #1e293b; }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+        .btn-page { background: white; border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; margin: 0 0.2rem; cursor: pointer; border-radius: var(--radius); }
+        .btn-page.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-page:disabled { opacity: 0.5; cursor: default; }
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 0.3rem; margin-top: 1rem; flex-wrap: wrap; }
+        .query-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.5rem; background: white; }
+        .query-actions button { margin-left: 0.3rem; }
+        .chart-container { position: relative; height: 300px; margin: 1rem 0; }
+        .filters-row { display: flex; gap: 1rem; align-items: flex-end; overflow-x: auto; padding-bottom: 0.5rem; }
+        .filters-group { display: flex; gap: 1rem; flex-wrap: nowrap; }
+        .form-group { display: flex; flex-direction: column; min-width: 200px; flex-shrink: 0; }
+        .form-group label { font-size: 0.85rem; margin-bottom: 0.25rem; color: var(--text-light); font-weight: 500; }
+        .btn-group { display: flex; gap: 0.5rem; flex-shrink: 0; margin-left: auto; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1rem; }
+        .dashboard-grid .card { margin-bottom: 0; min-width: 0; }
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white; border-radius: var(--radius); padding: 2rem; max-width: 900px;
+            width: 95%; max-height: 85vh; overflow-y: auto; position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 1rem; right: 1rem;
+            background: transparent; border: none; font-size: 1.5rem; cursor: pointer;
+            color: var(--text-light); transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--danger); }
+        .detail-header {
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .detail-header h3 { color: var(--primary); margin: 0; }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .detail-item {
+            background: var(--sidebar-bg);
+            border-radius: var(--radius);
+            padding: 0.75rem 1rem;
+            transition: all 0.2s;
+        }
+        .detail-item:hover {
+            background: var(--primary-light);
+            transform: translateX(2px);
+        }
+        .detail-label {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .detail-value {
+            color: var(--text);
+            font-size: 0.9rem;
+            word-break: break-word;
+            white-space: normal;
+        }
+        .detail-value.empty { color: var(--text-light); font-style: italic; }
+
+        /* TOASTS */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-width: 380px;
+        }
+        .toast {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideInRight 0.3s ease forwards;
+            border-left: 4px solid;
+            font-weight: 500;
+        }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: var(--warning); }
+        .toast.info { border-left-color: var(--info); }
+        .toast-icon { font-size: 1.25rem; flex-shrink: 0; }
+        .toast-message { flex: 1; font-size: 0.9rem; color: var(--text); }
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: var(--text-light);
+            padding: 0;
+            margin-left: 0.5rem;
+            line-height: 1;
+        }
+        .toast-close:hover { color: var(--text); }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateX(100%); visibility: hidden; }
+        }
+        .toast.hide { animation: fadeOut 0.3s ease forwards; }
+
+        /* Modal de confirmação */
+        .confirm-modal .modal-content {
+            max-width: 450px;
+            text-align: center;
+            padding: 1.75rem;
+        }
+        .confirm-modal .confirm-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .confirm-modal .confirm-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .confirm-modal .confirm-message { color: var(--text-light); margin-bottom: 1.5rem; }
+        .confirm-modal .confirm-buttons { display: flex; gap: 0.75rem; justify-content: center; }
+
+        /* Modal para salvar pesquisa (prompt customizado) */
+        .save-prompt-modal .modal-content {
+            max-width: 450px;
+            text-align: center;
+            padding: 2rem;
+        }
+        .save-prompt-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        .save-prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+        .save-prompt-message {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .save-prompt-input {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .save-prompt-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+            outline: none;
+        }
+        .save-prompt-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+        .save-prompt-buttons .btn {
+            min-width: 100px;
+        }
+        .save-prompt-modal.modal.active .modal-content {
+            animation: modalSlideIn 0.2s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .menu-toggle { display: flex; }
+            .main { margin-left: 0; width: 100%; padding: 1rem; padding-top: 4rem; }
+            .row { flex-direction: column; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+            .toast-container { top: 1rem; right: 1rem; left: 1rem; max-width: none; }
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <h2>📊 SAFTBNDES</h2>
+        <button class="active" data-section="dashboard">📈 Dashboard</button>
+        <button data-section="search">🔍 Pesquisa Avançada</button>
+        <button data-section="cadastro">➕ Nova Operação</button>
+        <button data-section="saved">📋 Pesquisas Salvas</button>
+    </nav>
+    <main class="main" id="main">
+        <!-- Dashboard -->
+        <section id="dashboard" class="section active">
+            <div class="card"><h3>Resumo Geral</h3><div class="row" id="statsCards"></div></div>
+            <div class="dashboard-grid">
+                <div class="card"><h3>Top Estados</h3><div class="chart-container"><canvas id="chartEstados"></canvas></div></div>
+                <div class="card"><h3>Agentes</h3><div class="chart-container"><canvas id="chartAgentes"></canvas></div></div>
+                <div class="card"><h3>Setores BNDES</h3><div class="chart-container"><canvas id="chartSetores"></canvas></div></div>
+                <div class="card"><h3>Porte</h3><div class="chart-container"><canvas id="chartPorte"></canvas></div></div>
+                <div class="card"><h3>Natureza</h3><div class="chart-container"><canvas id="chartNatureza"></canvas></div></div>
+                <div class="card"><h3>Produtos</h3><div class="chart-container"><canvas id="chartProdutos"></canvas></div></div>
+            </div>
+        </section>
+
+        <!-- Pesquisa Avançada -->
+        <section id="search" class="section">
+            <div class="card">
+                <h3>Filtros de Operação</h3>
+                <form id="searchForm">
+                    <div class="filters-row">
+                        <div class="filters-group">
+                            <div class="form-group"><label>Cliente</label><input id="fCliente" placeholder="Nome do cliente"></div>
+                            <div class="form-group"><label>UF</label><input id="fUf" placeholder="UF"></div>
+                            <div class="form-group"><label>Setor BNDES</label><input id="fSetor" placeholder="AGROPECUÁRIA"></div>
+                            <div class="form-group"><label>Porte do Cliente</label><select id="fPorte"><option value="">Todos</option><option>MICRO</option><option>PEQUENA</option><option>MÉDIA</option><option>GRANDE</option></select></div>
+                            <div class="form-group"><label>Natureza do Cliente</label><select id="fNatureza"><option value="">Todas</option><option>PRIVADA</option><option>PÚBLICA</option></select></div>
+                            <div class="form-group"><label>Produto</label><input id="fProduto" placeholder="BNDES AUTOMÁTICO"></div>
+                            <div class="form-group"><label>Valor Mínimo (R$)</label><input type="number" id="fValorMin" step="0.01"></div>
+                            <div class="form-group"><label>Situação</label><select id="fSituacao"><option value="">Todas</option><option>ATIVA</option><option>LIQUIDADA</option></select></div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary">🔍 Buscar</button>
+                            <button type="button" id="clearFiltersBtn" class="btn btn-warning">🧹 Limpar</button>
+                            <button type="button" id="saveSearchBtn" class="btn btn-success">💾 Salvar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="card" id="resultsCard" style="display:none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Resultados (página <span id="currentPageSpan">1</span> de <span id="totalPagesSpan">-</span>, total: <span id="resultCount">0</span>)</h3>
+                    <div><label>Itens/pág:</label><select id="pageSizeSelect"><option value="20">20</option><option value="50">50</option><option value="100">100</option></select></div>
+                </div>
+                <div class="table-container">
+                    <table id="resultsTable">
+                        <thead><tr><th>ID</th><th>Cliente</th><th>UF</th><th>Valor (R$)</th><th>Produto</th><th>Situação</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="paginationControls"></div>
+            </div>
+        </section>
+
+        <!-- Nova Operação (criação) -->
+        <section id="cadastro" class="section">
+            <div class="card">
+                <h3>Cadastrar Nova Operação</h3>
+                <form id="operacaoForm">
+                    <div class="row"><div class="form-group col"><label>Cliente *</label><input id="formCliente" required></div><div class="form-group col"><label>CPF/CNPJ</label><input id="formCpfCnpj"></div></div>
+                    <div class="row"><div class="form-group col"><label>UF *</label><input id="formUf" required></div><div class="form-group col"><label>Município</label><input id="formMunicipio"></div></div>
+                    <div class="row"><div class="form-group col"><label>Cód. Município</label><input id="formMunicipioCodigo"></div><div class="form-group col"><label>Data Contratação</label><input type="datetime-local" id="formDataContratacao"></div></div>
+                    <div class="row"><div class="form-group col"><label>Valor Operação (R$) *</label><input type="number" step="0.01" id="formValorOp" required></div><div class="form-group col"><label>Valor Desembolsado (R$)</label><input type="number" step="0.01" id="formValorDesemb"></div></div>
+                    <div class="row"><div class="form-group col"><label>Fonte Recurso</label><input id="formFonteRecurso"></div><div class="form-group col"><label>Custo Financeiro</label><input id="formCustoFin"></div></div>
+                    <div class="row"><div class="form-group col"><label>Juros</label><input type="number" step="0.01" id="formJuros"></div><div class="form-group col"><label>Carência (meses)</label><input type="number" id="formCarencia"></div></div>
+                    <div class="row"><div class="form-group col"><label>Amortização (meses)</label><input type="number" id="formAmortizacao"></div><div class="form-group col"><label>Modalidade</label><input id="formModalidade"></div></div>
+                    <div class="row"><div class="form-group col"><label>Forma</label><input id="formForma"></div><div class="form-group col"><label>Produto</label><input id="formProduto"></div></div>
+                    <div class="row"><div class="form-group col"><label>Instrumento Financeiro</label><input id="formInstrumento"></div><div class="form-group col"><label>Inovação</label><select id="formInovacao"><option value="">-</option><option>SIM</option><option>NÃO</option></select></div></div>
+                    <div class="row"><div class="form-group col"><label>Área Operacional</label><input id="formAreaOperacional"></div><div class="form-group col"><label>Setor CNAE</label><input id="formSetorCnae"></div></div>
+                    <div class="row"><div class="form-group col"><label>Subsetor CNAE Agrupado</label><input id="formSubsetorAgrupado"></div><div class="form-group col"><label>Cód. Subsetor</label><input id="formSubsetorCodigo"></div></div>
+                    <div class="row"><div class="form-group col"><label>Subsetor Nome</label><input id="formSubsetorNome"></div><div class="form-group col"><label>Setor BNDES</label><input id="formSetorBndes"></div></div>
+                    <div class="row"><div class="form-group col"><label>Subsetor BNDES</label><input id="formSubsetorBndes"></div><div class="form-group col"><label>Porte Cliente</label><select id="formPorte"><option value="">-</option><option>MICRO</option><option>PEQUENA</option><option>MÉDIA</option><option>GRANDE</option></select></div></div>
+                    <div class="row"><div class="form-group col"><label>Natureza Cliente</label><select id="formNatureza"><option value="">-</option><option>PRIVADA</option><option>PÚBLICA</option></select></div><div class="form-group col"><label>Instituição Financeira</label><input id="formInstituicaoFin"></div></div>
+                    <div class="row"><div class="form-group col"><label>CNPJ Agente</label><input id="formCnpjAgente"></div><div class="form-group col"><label>Situação</label><select id="formSituacao"><option value="">-</option><option>ATIVA</option><option>LIQUIDADA</option></select></div></div>
+                    <div class="row" style="margin-top: 1rem;"><button type="submit" class="btn btn-primary">💾 Criar</button><button type="reset" class="btn btn-warning">🗑️ Limpar</button></div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Pesquisas Salvas -->
+        <section id="saved" class="section">
+            <div class="card"><h3>Suas Pesquisas Salvas</h3><div id="savedQueriesList"></div></div>
+        </section>
+    </main>
+
+    <!-- Modal de Detalhes -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <div class="detail-header">
+                <span style="font-size: 1.5rem;">🔍</span>
+                <h3>Detalhes da Operação</h3>
+            </div>
+            <div id="detailContent" class="detail-grid"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeEditModal">&times;</button>
+            <h3>Editar Operação</h3>
+            <form id="editForm">
+                <input type="hidden" id="editIdModal">
+                <div class="row"><div class="form-group col"><label>Cliente *</label><input id="editCliente" required></div><div class="form-group col"><label>CPF/CNPJ</label><input id="editCpfCnpj"></div></div>
+                <div class="row"><div class="form-group col"><label>UF *</label><input id="editUf" required></div><div class="form-group col"><label>Município</label><input id="editMunicipio"></div></div>
+                <div class="row"><div class="form-group col"><label>Cód. Município</label><input id="editMunicipioCodigo"></div><div class="form-group col"><label>Data Contratação</label><input type="datetime-local" id="editDataContratacao"></div></div>
+                <div class="row"><div class="form-group col"><label>Valor Operação (R$) *</label><input type="number" step="0.01" id="editValorOp" required></div><div class="form-group col"><label>Valor Desembolsado (R$)</label><input type="number" step="0.01" id="editValorDesemb"></div></div>
+                <div class="row"><div class="form-group col"><label>Fonte Recurso</label><input id="editFonteRecurso"></div><div class="form-group col"><label>Custo Financeiro</label><input id="editCustoFin"></div></div>
+                <div class="row"><div class="form-group col"><label>Juros</label><input type="number" step="0.01" id="editJuros"></div><div class="form-group col"><label>Carência (meses)</label><input type="number" id="editCarencia"></div></div>
+                <div class="row"><div class="form-group col"><label>Amortização (meses)</label><input type="number" id="editAmortizacao"></div><div class="form-group col"><label>Modalidade</label><input id="editModalidade"></div></div>
+                <div class="row"><div class="form-group col"><label>Forma</label><input id="editForma"></div><div class="form-group col"><label>Produto</label><input id="editProduto"></div></div>
+                <div class="row"><div class="form-group col"><label>Instrumento Financeiro</label><input id="editInstrumento"></div><div class="form-group col"><label>Inovação</label><select id="editInovacao"><option value="">-</option><option>SIM</option><option>NÃO</option></select></div></div>
+                <div class="row"><div class="form-group col"><label>Área Operacional</label><input id="editAreaOperacional"></div><div class="form-group col"><label>Setor CNAE</label><input id="editSetorCnae"></div></div>
+                <div class="row"><div class="form-group col"><label>Subsetor CNAE Agrupado</label><input id="editSubsetorAgrupado"></div><div class="form-group col"><label>Cód. Subsetor</label><input id="editSubsetorCodigo"></div></div>
+                <div class="row"><div class="form-group col"><label>Subsetor Nome</label><input id="editSubsetorNome"></div><div class="form-group col"><label>Setor BNDES</label><input id="editSetorBndes"></div></div>
+                <div class="row"><div class="form-group col"><label>Subsetor BNDES</label><input id="editSubsetorBndes"></div><div class="form-group col"><label>Porte Cliente</label><select id="editPorte"><option value="">-</option><option>MICRO</option><option>PEQUENA</option><option>MÉDIA</option><option>GRANDE</option></select></div></div>
+                <div class="row"><div class="form-group col"><label>Natureza Cliente</label><select id="editNatureza"><option value="">-</option><option>PRIVADA</option><option>PÚBLICA</option></select></div><div class="form-group col"><label>Instituição Financeira</label><input id="editInstituicaoFin"></div></div>
+                <div class="row"><div class="form-group col"><label>CNPJ Agente</label><input id="editCnpjAgente"></div><div class="form-group col"><label>Situação</label><select id="editSituacao"><option value="">-</option><option>ATIVA</option><option>LIQUIDADA</option></select></div></div>
+                <div class="row" style="margin-top: 1rem;"><button type="submit" class="btn btn-primary">✏️ Atualizar</button><button type="button" class="btn btn-warning" id="cancelEditModalBtn">Cancelar</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação Customizado -->
+    <div class="modal confirm-modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-title" id="confirmTitle">Confirmar ação</div>
+            <div class="confirm-message" id="confirmMessage">Tem certeza que deseja continuar?</div>
+            <div class="confirm-buttons">
+                <button class="btn btn-primary" id="confirmYesBtn">Sim, confirmar</button>
+                <button class="btn btn-warning" id="confirmNoBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Salvar Pesquisa (substitui o prompt) -->
+    <div class="modal save-prompt-modal" id="savePromptModal">
+        <div class="modal-content">
+            <div class="save-prompt-icon">💾</div>
+            <div class="save-prompt-title">Salvar pesquisa</div>
+            <div class="save-prompt-message">Digite um nome para identificar esta pesquisa:</div>
+            <input type="text" id="savePromptInput" class="save-prompt-input" placeholder="Ex: Operações SP - 2024" autocomplete="off">
+            <div class="save-prompt-buttons">
+                <button class="btn btn-primary" id="savePromptConfirmBtn">Salvar</button>
+                <button class="btn btn-warning" id="savePromptCancelBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container para Toasts -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let currentPage = 0;
+        let currentSize = 20;
+        let confirmResolver = null;
+        let savePromptResolver = null;
+
+        // ==================== TOASTS ====================
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const iconMap = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            const icon = iconMap[type] || 'ℹ️';
+            toast.innerHTML = `
+                <span class="toast-icon">${icon}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close">&times;</button>
+            `;
+            container.appendChild(toast);
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', () => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            });
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.classList.add('hide');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, duration);
+        }
+
+        // ==================== CONFIRMAÇÃO ====================
+        function showConfirm(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmModal');
+                document.getElementById('confirmTitle').textContent = title;
+                document.getElementById('confirmMessage').textContent = message;
+                modal.classList.add('active');
+                confirmResolver = resolve;
+            });
+        }
+        function closeConfirm(confirmed) {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('active');
+            if (confirmResolver) {
+                confirmResolver(confirmed);
+                confirmResolver = null;
+            }
+        }
+        document.getElementById('confirmYesBtn').addEventListener('click', () => closeConfirm(true));
+        document.getElementById('confirmNoBtn').addEventListener('click', () => closeConfirm(false));
+
+        // ==================== PROMPT CUSTOMIZADO PARA SALVAR PESQUISA ====================
+        function showSavePrompt() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('savePromptModal');
+                const input = document.getElementById('savePromptInput');
+                input.value = '';
+                modal.classList.add('active');
+                input.focus();
+                savePromptResolver = resolve;
+            });
+        }
+        function closeSavePrompt(result) {
+            const modal = document.getElementById('savePromptModal');
+            modal.classList.remove('active');
+            if (savePromptResolver) {
+                savePromptResolver(result);
+                savePromptResolver = null;
+            }
+        }
+        document.getElementById('savePromptConfirmBtn').addEventListener('click', () => {
+            const input = document.getElementById('savePromptInput');
+            const name = input.value.trim();
+            if (name) {
+                closeSavePrompt(name);
+            } else {
+                input.classList.add('error');
+                setTimeout(() => input.classList.remove('error'), 500);
+                showToast('Por favor, digite um nome para a pesquisa', 'warning');
+            }
+        });
+        document.getElementById('savePromptCancelBtn').addEventListener('click', () => closeSavePrompt(null));
+        // Permitir Enter no campo
+        document.getElementById('savePromptInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('savePromptConfirmBtn').click();
+            }
+        });
+
+        // ==================== API ====================
+        async function fetchAPI(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers: { 'Content-Type': 'application/json', ...options.headers }
+                });
+                if (response.status === 204) return null;
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // ==================== DASHBOARD ====================
+        async function loadDashboard() {
+            try {
+                const [estados, agentes, countRes, setores, porte, natureza, produtos] = await Promise.all([
+                    fetchAPI('/resumo/estados'), fetchAPI('/resumo/agentes'), fetchAPI('/operacoes/count'),
+                    fetchAPI('/resumo/setores'), fetchAPI('/resumo/porte'), fetchAPI('/resumo/natureza'),
+                    fetchAPI('/resumo/produtos')
+                ]);
+                const totalValor = estados.reduce((s, e) => s + (e.totalFinanciado || 0), 0);
+                document.getElementById('statsCards').innerHTML = `
+                    <div class="stat col"><div class="number">${(countRes.total || 0).toLocaleString('pt-BR')}</div>Total de Operações</div>
+                    <div class="stat col"><div class="number">R$ ${(totalValor / 1e9).toFixed(1)}Bi</div>Valor Total</div>
+                    <div class="stat col"><div class="number">${estados.length}</div>Estados Atendidos</div>`;
+
+                ['estadosChart', 'agentesChart', 'setoresChart', 'porteChart', 'naturezaChart', 'produtosChart'].forEach(id => { if (window[id]) window[id].destroy(); });
+                window.estadosChart = new Chart(document.getElementById('chartEstados'), { type: 'bar', data: { labels: estados.slice(0, 10).map(e => e.uf), datasets: [{ label: 'Total Financiado (R$)', data: estados.slice(0, 10).map(e => e.totalFinanciado), backgroundColor: '#1a56db' }] } });
+                window.agentesChart = new Chart(document.getElementById('chartAgentes'), { type: 'pie', data: { labels: agentes.slice(0, 5).map(a => (a.instituicaoFinanceira || 'Outros').substring(0, 20)), datasets: [{ data: agentes.slice(0, 5).map(a => a.totalFinanciado), backgroundColor: ['#1a56db', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'] }] } });
+                window.setoresChart = new Chart(document.getElementById('chartSetores'), { type: 'bar', data: { labels: setores.slice(0, 10).map(s => (s.setor || '').substring(0, 25)), datasets: [{ label: 'Valor (R$)', data: setores.slice(0, 10).map(s => s.totalFinanciado), backgroundColor: '#16a34a' }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } } } });
+                window.porteChart = new Chart(document.getElementById('chartPorte'), { type: 'doughnut', data: { labels: porte.map(p => p.porte), datasets: [{ data: porte.map(p => p.quantidade), backgroundColor: ['#f59e0b', '#f97316', '#ef4444', '#8b5cf6'] }] } });
+                window.naturezaChart = new Chart(document.getElementById('chartNatureza'), { type: 'pie', data: { labels: natureza.map(n => n.natureza), datasets: [{ data: natureza.map(n => n.quantidade), backgroundColor: ['#3b82f6', '#6366f1'] }] } });
+                window.produtosChart = new Chart(document.getElementById('chartProdutos'), { type: 'bar', data: { labels: produtos.slice(0, 10).map(p => (p.produto || '').substring(0, 25)), datasets: [{ label: 'Quantidade', data: produtos.slice(0, 10).map(p => p.quantidade), backgroundColor: '#8b5cf6' }] } });
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao carregar dashboard. Verifique se o backend está em http://localhost:8080', 'error');
+            }
+        }
+
+        // ==================== PESQUISA ====================
+        async function performSearch(page = 0, size = currentSize) {
+            const params = new URLSearchParams();
+            const fields = {
+                cliente: document.getElementById('fCliente').value,
+                uf: document.getElementById('fUf').value,
+                setor: document.getElementById('fSetor').value,
+                porteDoCliente: document.getElementById('fPorte').value,
+                naturezaDoCliente: document.getElementById('fNatureza').value,
+                produto: document.getElementById('fProduto').value,
+                valorMinimo: document.getElementById('fValorMin').value || undefined,
+                situacao: document.getElementById('fSituacao').value
+            };
+            Object.entries(fields).forEach(([key, value]) => { if (value) params.append(key, value); });
+            params.append('page', page);
+            params.append('size', size);
+
+            try {
+                const data = await fetchAPI(`/operacoes?${params}`);
+                renderResultsTable(data.content);
+                renderPagination(data.number, data.totalPages, data.totalElements);
+                document.getElementById('resultsCard').style.display = 'block';
+            } catch (e) {
+                showToast('Erro na busca: ' + e.message, 'error');
+            }
+        }
+
+        function renderResultsTable(operacoes) {
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = '';
+            if (!operacoes || operacoes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7">Nenhum resultado encontrado. </td></tr>';
+                return;
+            }
+            operacoes.forEach(op => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = op.idInterno;
+                row.insertCell(1).textContent = op.cliente || '-';
+                row.insertCell(2).textContent = op.uf || '-';
+                row.insertCell(3).textContent = op.valorDaOperacaoEmReais ? `R$ ${op.valorDaOperacaoEmReais.toLocaleString('pt-BR')}` : '-';
+                row.insertCell(4).textContent = op.produto || '-';
+                row.insertCell(5).textContent = op.situacaoDaOperacao || '-';
+                const actionsCell = row.insertCell(6);
+                actionsCell.innerHTML = `
+                    <button class="btn btn-primary btn-sm" onclick="openEditModal(${op.idInterno})">✏️ Editar</button>
+                    <button class="btn btn-warning btn-sm" style="margin-left:5px" onclick="showDetailModal(${op.idInterno})">🔍 Detalhes</button>
+                    <button class="btn btn-danger btn-sm" style="margin-left:5px" onclick="excluirOperacao(${op.idInterno})">🗑️ Excluir</button>
+                `;
+            });
+        }
+
+        async function excluirOperacao(id) {
+            const confirmed = await showConfirm('Excluir operação', 'Tem certeza que deseja excluir esta operação? Esta ação não pode ser desfeita.');
+            if (!confirmed) return;
+            try {
+                await fetchAPI(`/operacoes/${id}`, { method: 'DELETE' });
+                showToast('Operação excluída com sucesso!', 'success');
+                performSearch(currentPage, currentSize);
+                loadDashboard();
+            } catch (e) {
+                showToast('Erro ao excluir: ' + e.message, 'error');
+            }
+        }
+
+        // Paginação responsiva
+        function renderPagination(number, totalPages, totalElements) {
+            document.getElementById('currentPageSpan').textContent = number + 1;
+            document.getElementById('totalPagesSpan').textContent = totalPages;
+            document.getElementById('resultCount').textContent = totalElements;
+            const container = document.getElementById('paginationControls');
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const prev = document.createElement('button');
+            prev.textContent = '◀';
+            prev.className = 'btn-page';
+            prev.disabled = number === 0;
+            prev.onclick = () => { currentPage = number - 1; performSearch(currentPage, currentSize); };
+            container.appendChild(prev);
+
+            const pages = getPageNumbers(number, totalPages);
+            for (let p of pages) {
+                if (p === '...') {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.style.margin = '0 0.25rem';
+                    container.appendChild(dots);
+                } else {
+                    const btn = document.createElement('button');
+                    btn.textContent = p;
+                    btn.className = `btn-page ${p - 1 === number ? 'active' : ''}`;
+                    btn.onclick = () => { currentPage = p - 1; performSearch(currentPage, currentSize); };
+                    container.appendChild(btn);
+                }
+            }
+
+            const next = document.createElement('button');
+            next.textContent = '▶';
+            next.className = 'btn-page';
+            next.disabled = number === totalPages - 1;
+            next.onclick = () => { currentPage = number + 1; performSearch(currentPage, currentSize); };
+            container.appendChild(next);
+        }
+
+        function getPageNumbers(current, total) {
+            const delta = 2;
+            const range = [];
+            const rangeWithDots = [];
+            let l;
+            for (let i = 1; i <= total; i++) {
+                if (i === 1 || i === total || (i >= current + 1 - delta && i <= current + 1 + delta)) {
+                    range.push(i);
+                }
+            }
+            range.forEach((i) => {
+                if (l) {
+                    if (i - l === 2) rangeWithDots.push(l + 1);
+                    else if (i - l !== 1) rangeWithDots.push('...');
+                }
+                rangeWithDots.push(i);
+                l = i;
+            });
+            return rangeWithDots;
+        }
+
+        // ==================== CRIAÇÃO ====================
+        document.getElementById('operacaoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const operacao = {
+                cliente: document.getElementById('formCliente').value,
+                cpfCnpj: document.getElementById('formCpfCnpj').value,
+                uf: document.getElementById('formUf').value,
+                municipio: document.getElementById('formMunicipio').value,
+                municipioCodigo: document.getElementById('formMunicipioCodigo').value,
+                dataDaContratacao: document.getElementById('formDataContratacao').value ? document.getElementById('formDataContratacao').value + ':00' : null,
+                valorDaOperacaoEmReais: parseFloat(document.getElementById('formValorOp').value),
+                valorDesembolsadoReais: parseFloat(document.getElementById('formValorDesemb').value) || null,
+                fonteDeRecursoDesembolsos: document.getElementById('formFonteRecurso').value,
+                custoFinanceiro: document.getElementById('formCustoFin').value,
+                juros: parseFloat(document.getElementById('formJuros').value) || null,
+                prazoCarenciaMeses: parseInt(document.getElementById('formCarencia').value) || null,
+                prazoAmortizacaoMeses: parseInt(document.getElementById('formAmortizacao').value) || null,
+                modalidadeDeApoio: document.getElementById('formModalidade').value,
+                formaDeApoio: document.getElementById('formForma').value,
+                produto: document.getElementById('formProduto').value,
+                instrumentoFinanceiro: document.getElementById('formInstrumento').value,
+                inovacao: document.getElementById('formInovacao').value,
+                areaOperacional: document.getElementById('formAreaOperacional').value,
+                setorCnae: document.getElementById('formSetorCnae').value,
+                subsetorCnaeAgrupado: document.getElementById('formSubsetorAgrupado').value,
+                subsetorCnaeCodigo: document.getElementById('formSubsetorCodigo').value,
+                subsetorCnaeNome: document.getElementById('formSubsetorNome').value,
+                setorBndes: document.getElementById('formSetorBndes').value,
+                subsetorBndes: document.getElementById('formSubsetorBndes').value,
+                porteDoCliente: document.getElementById('formPorte').value,
+                naturezaDoCliente: document.getElementById('formNatureza').value,
+                instituicaoFinanceiraCredenciada: document.getElementById('formInstituicaoFin').value,
+                cnpjDoAgenteFinanceiro: document.getElementById('formCnpjAgente').value,
+                situacaoDaOperacao: document.getElementById('formSituacao').value
+            };
+            try {
+                await fetchAPI('/operacoes', { method: 'POST', body: JSON.stringify(operacao) });
+                showToast('Operação criada com sucesso!', 'success');
+                e.target.reset();
+                loadDashboard();
+                if (document.getElementById('search').classList.contains('active')) performSearch();
+            } catch (err) { showToast('Erro ao criar operação: ' + err.message, 'error'); }
+        });
+
+        // ==================== EDIÇÃO ====================
+        window.openEditModal = async function(id) {
+            try {
+                const op = await fetchAPI(`/operacoes/${id}`);
+                document.getElementById('editIdModal').value = op.idInterno;
+                document.getElementById('editCliente').value = op.cliente || '';
+                document.getElementById('editCpfCnpj').value = op.cpfCnpj || '';
+                document.getElementById('editUf').value = op.uf || '';
+                document.getElementById('editMunicipio').value = op.municipio || '';
+                document.getElementById('editMunicipioCodigo').value = op.municipioCodigo || '';
+                document.getElementById('editDataContratacao').value = op.dataDaContratacao ? new Date(op.dataDaContratacao).toISOString().slice(0, 16) : '';
+                document.getElementById('editValorOp').value = op.valorDaOperacaoEmReais || '';
+                document.getElementById('editValorDesemb').value = op.valorDesembolsadoReais || '';
+                document.getElementById('editFonteRecurso').value = op.fonteDeRecursoDesembolsos || '';
+                document.getElementById('editCustoFin').value = op.custoFinanceiro || '';
+                document.getElementById('editJuros').value = op.juros || '';
+                document.getElementById('editCarencia').value = op.prazoCarenciaMeses || '';
+                document.getElementById('editAmortizacao').value = op.prazoAmortizacaoMeses || '';
+                document.getElementById('editModalidade').value = op.modalidadeDeApoio || '';
+                document.getElementById('editForma').value = op.formaDeApoio || '';
+                document.getElementById('editProduto').value = op.produto || '';
+                document.getElementById('editInstrumento').value = op.instrumentoFinanceiro || '';
+                document.getElementById('editInovacao').value = op.inovacao || '';
+                document.getElementById('editAreaOperacional').value = op.areaOperacional || '';
+                document.getElementById('editSetorCnae').value = op.setorCnae || '';
+                document.getElementById('editSubsetorAgrupado').value = op.subsetorCnaeAgrupado || '';
+                document.getElementById('editSubsetorCodigo').value = op.subsetorCnaeCodigo || '';
+                document.getElementById('editSubsetorNome').value = op.subsetorCnaeNome || '';
+                document.getElementById('editSetorBndes').value = op.setorBndes || '';
+                document.getElementById('editSubsetorBndes').value = op.subsetorBndes || '';
+                document.getElementById('editPorte').value = op.porteDoCliente || '';
+                document.getElementById('editNatureza').value = op.naturezaDoCliente || '';
+                document.getElementById('editInstituicaoFin').value = op.instituicaoFinanceiraCredenciada || '';
+                document.getElementById('editCnpjAgente').value = op.cnpjDoAgenteFinanceiro || '';
+                document.getElementById('editSituacao').value = op.situacaoDaOperacao || '';
+                document.getElementById('editModal').classList.add('active');
+            } catch (e) { showToast('Erro ao carregar operação: ' + e.message, 'error'); }
+        };
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editIdModal').value;
+            const updated = {
+                cliente: document.getElementById('editCliente').value,
+                cpfCnpj: document.getElementById('editCpfCnpj').value,
+                uf: document.getElementById('editUf').value,
+                municipio: document.getElementById('editMunicipio').value,
+                municipioCodigo: document.getElementById('editMunicipioCodigo').value,
+                dataDaContratacao: document.getElementById('editDataContratacao').value ? document.getElementById('editDataContratacao').value + ':00' : null,
+                valorDaOperacaoEmReais: parseFloat(document.getElementById('editValorOp').value),
+                valorDesembolsadoReais: parseFloat(document.getElementById('editValorDesemb').value) || null,
+                fonteDeRecursoDesembolsos: document.getElementById('editFonteRecurso').value,
+                custoFinanceiro: document.getElementById('editCustoFin').value,
+                juros: parseFloat(document.getElementById('editJuros').value) || null,
+                prazoCarenciaMeses: parseInt(document.getElementById('editCarencia').value) || null,
+                prazoAmortizacaoMeses: parseInt(document.getElementById('editAmortizacao').value) || null,
+                modalidadeDeApoio: document.getElementById('editModalidade').value,
+                formaDeApoio: document.getElementById('editForma').value,
+                produto: document.getElementById('editProduto').value,
+                instrumentoFinanceiro: document.getElementById('editInstrumento').value,
+                inovacao: document.getElementById('editInovacao').value,
+                areaOperacional: document.getElementById('editAreaOperacional').value,
+                setorCnae: document.getElementById('editSetorCnae').value,
+                subsetorCnaeAgrupado: document.getElementById('editSubsetorAgrupado').value,
+                subsetorCnaeCodigo: document.getElementById('editSubsetorCodigo').value,
+                subsetorCnaeNome: document.getElementById('editSubsetorNome').value,
+                setorBndes: document.getElementById('editSetorBndes').value,
+                subsetorBndes: document.getElementById('editSubsetorBndes').value,
+                porteDoCliente: document.getElementById('editPorte').value,
+                naturezaDoCliente: document.getElementById('editNatureza').value,
+                instituicaoFinanceiraCredenciada: document.getElementById('editInstituicaoFin').value,
+                cnpjDoAgenteFinanceiro: document.getElementById('editCnpjAgente').value,
+                situacaoDaOperacao: document.getElementById('editSituacao').value
+            };
+            try {
+                await fetchAPI(`/operacoes/${id}`, { method: 'PUT', body: JSON.stringify(updated) });
+                showToast('Operação atualizada com sucesso!', 'success');
+                document.getElementById('editModal').classList.remove('active');
+                loadDashboard();
+                if (document.getElementById('search').classList.contains('active')) performSearch(currentPage, currentSize);
+            } catch (err) { showToast('Erro ao atualizar: ' + err.message, 'error'); }
+        });
+
+        // ==================== DETALHES ====================
+        window.showDetailModal = async function(id) {
+            try {
+                const op = await fetchAPI(`/operacoes/${id}`);
+                const container = document.getElementById('detailContent');
+                if (!container) return;
+                
+                const fieldLabels = {
+                    idInterno: 'ID Interno', cliente: 'Cliente', cpfCnpj: 'CPF/CNPJ', uf: 'UF',
+                    municipio: 'Município', municipioCodigo: 'Código do Município', dataDaContratacao: 'Data da Contratação',
+                    valorDaOperacaoEmReais: 'Valor da Operação (R$)', valorDesembolsadoReais: 'Valor Desembolsado (R$)',
+                    fonteDeRecursoDesembolsos: 'Fonte de Recurso', custoFinanceiro: 'Custo Financeiro', juros: 'Juros (%)',
+                    prazoCarenciaMeses: 'Carência (meses)', prazoAmortizacaoMeses: 'Amortização (meses)',
+                    modalidadeDeApoio: 'Modalidade de Apoio', formaDeApoio: 'Forma de Apoio', produto: 'Produto',
+                    instrumentoFinanceiro: 'Instrumento Financeiro', inovacao: 'Inovação', areaOperacional: 'Área Operacional',
+                    setorCnae: 'Setor CNAE', subsetorCnaeAgrupado: 'Subsetor CNAE Agrupado', subsetorCnaeCodigo: 'Código do Subsetor',
+                    subsetorCnaeNome: 'Nome do Subsetor', setorBndes: 'Setor BNDES', subsetorBndes: 'Subsetor BNDES',
+                    porteDoCliente: 'Porte do Cliente', naturezaDoCliente: 'Natureza do Cliente',
+                    instituicaoFinanceiraCredenciada: 'Instituição Financeira', cnpjDoAgenteFinanceiro: 'CNPJ do Agente',
+                    situacaoDaOperacao: 'Situação da Operação'
+                };
+                
+                container.innerHTML = '';
+                for (const [key, value] of Object.entries(op)) {
+                    const label = fieldLabels[key] || key;
+                    const displayValue = value !== null && value !== undefined && value !== '' ? 
+                        (key.includes('valor') && typeof value === 'number' ? `R$ ${value.toLocaleString('pt-BR')}` : value) : '—';
+                    const item = document.createElement('div');
+                    item.className = 'detail-item';
+                    item.innerHTML = `<span class="detail-label">${label}</span><div class="detail-value ${displayValue === '—' ? 'empty' : ''}">${displayValue}</div>`;
+                    container.appendChild(item);
+                }
+                document.getElementById('detailModal').classList.add('active');
+            } catch (e) {
+                showToast('Erro ao carregar detalhes: ' + e.message, 'error');
+            }
+        };
+
+        // Fechar modais
+        document.getElementById('closeModal').addEventListener('click', () => document.getElementById('detailModal').classList.remove('active'));
+        document.getElementById('closeEditModal').addEventListener('click', () => document.getElementById('editModal').classList.remove('active'));
+        document.getElementById('cancelEditModalBtn').addEventListener('click', () => document.getElementById('editModal').classList.remove('active'));
+
+        // ==================== PESQUISAS SALVAS (com prompt customizado) ====================
+        async function saveCurrentSearch() {
+            const filters = {
+                cliente: document.getElementById('fCliente').value,
+                uf: document.getElementById('fUf').value,
+                setor: document.getElementById('fSetor').value,
+                porteDoCliente: document.getElementById('fPorte').value,
+                naturezaDoCliente: document.getElementById('fNatureza').value,
+                produto: document.getElementById('fProduto').value,
+                valorMinimo: document.getElementById('fValorMin').value,
+                situacao: document.getElementById('fSituacao').value
+            };
+            const name = await showSavePrompt();
+            if (!name) return;
+            const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+            saved.push({ name, filters, date: new Date().toISOString() });
+            localStorage.setItem('savedQueries', JSON.stringify(saved));
+            showToast('Pesquisa salva com sucesso!', 'success');
+            renderSavedQueries();
+        }
+
+        function renderSavedQueries() {
+            const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+            const container = document.getElementById('savedQueriesList');
+            if (saved.length === 0) { container.innerHTML = '<p>Nenhuma pesquisa salva.</p>'; return; }
+            container.innerHTML = saved.map((q, idx) => `
+                <div class="query-item">
+                    <span><strong>${q.name}</strong><br><small>${new Date(q.date).toLocaleString()}</small></span>
+                    <div class="query-actions">
+                        <button class="btn btn-sm btn-primary" onclick="applySavedQuery(${idx})">Aplicar</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSavedQuery(${idx})">Excluir</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.applySavedQuery = function (idx) {
+            const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+            const f = saved[idx].filters;
+            document.getElementById('fCliente').value = f.cliente || '';
+            document.getElementById('fUf').value = f.uf || '';
+            document.getElementById('fSetor').value = f.setor || '';
+            document.getElementById('fPorte').value = f.porteDoCliente || '';
+            document.getElementById('fNatureza').value = f.naturezaDoCliente || '';
+            document.getElementById('fProduto').value = f.produto || '';
+            document.getElementById('fValorMin').value = f.valorMinimo || '';
+            document.getElementById('fSituacao').value = f.situacao || '';
+            showToast('Filtros aplicados!', 'success');
+            performSearch(0, currentSize);
+        };
+
+        window.deleteSavedQuery = function (idx) {
+            const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+            saved.splice(idx, 1);
+            localStorage.setItem('savedQueries', JSON.stringify(saved));
+            renderSavedQueries();
+            showToast('Pesquisa removida', 'success');
+        };
+
+        // ==================== EVENTOS ====================
+        document.getElementById('searchForm').addEventListener('submit', (e) => { e.preventDefault(); performSearch(0, currentSize); });
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => { document.getElementById('searchForm').reset(); performSearch(0, currentSize); });
+        document.getElementById('saveSearchBtn').addEventListener('click', saveCurrentSearch);
+        document.getElementById('pageSizeSelect').addEventListener('change', (e) => { currentSize = parseInt(e.target.value); performSearch(0, currentSize); });
+
+        // Navegação
+        document.querySelectorAll('[data-section]').forEach(btn => btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-section]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(btn.dataset.section).classList.add('active');
+            if (btn.dataset.section === 'dashboard') loadDashboard();
+            if (btn.dataset.section === 'saved') renderSavedQueries();
+            if (btn.dataset.section === 'cadastro') document.getElementById('operacaoForm').reset();
+            document.getElementById('sidebar').classList.remove('open');
+        }));
+        document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+        document.addEventListener('click', (e) => { if (!e.target.closest('.sidebar') && !e.target.closest('#menuToggle')) document.getElementById('sidebar').classList.remove('open'); });
+
+        loadDashboard();
+    </script>
+</body>
+</html>
